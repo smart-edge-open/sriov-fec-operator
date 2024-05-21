@@ -4,9 +4,11 @@
 package daemon
 
 import (
+	"bytes"
 	"errors"
-	"github.com/sirupsen/logrus"
 	"os/exec"
+
+	"github.com/sirupsen/logrus"
 )
 
 func execCmd(args []string, log *logrus.Logger) (string, error) {
@@ -31,12 +33,16 @@ func execAndSuppress(args []string, log *logrus.Logger, suppressError func(e err
 		"args": cmd.Args,
 	}).Info("executing command")
 
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
 	out, err := cmd.Output()
 	if err != nil {
 		if suppressError(err) {
 			log.WithField("cmd", args).WithError(err).Info("ignoring error")
 		} else {
-			log.WithField("cmd", args).WithField("output", string(out)).WithError(err).Error("failed to execute command")
+			log.WithField("cmd", args).WithField("output", string(out)).
+				WithField("stderr", stderr.String()).
+				WithError(err).Error("failed to execute command")
 			return string(out), err
 		}
 	}
